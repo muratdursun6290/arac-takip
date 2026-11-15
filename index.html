@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Araç Defteri - Gider & Bakım Takibi</title>
+  
+  <!-- Mobil & PWA Meta Etiketleri -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#006a6a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Araç Defteri">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="./style.css">
+
+  <!-- Netlify Drawer / Feedback Widget Engelleyici -->
+  <style>
+    iframe[src*="app.netlify.com"],
+    iframe[src*="netlify"],
+    iframe#netlify-drawer,
+    div#netlify-drawer,
+    [data-netlify-drawer],
+    div[class*="netlify-drawer"],
+    #netlify-feedback-drawer,
+    .netlify-drawer-container {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      height: 0 !important;
+      width: 0 !important;
+      position: absolute !important;
+      top: -9999px !important;
+      left: -9999px !important;
+      z-index: -9999 !important;
+    }
+  </style>
+  <script>
+    (function() {
+      function removeNetlifyDrawer() {
+        const elements = document.querySelectorAll(
+          'iframe[src*="netlify"], iframe#netlify-drawer, div#netlify-drawer, [data-netlify-drawer], #netlify-feedback-drawer, div[class*="netlify-drawer"]'
+        );
+        elements.forEach(el => el.remove());
+      }
+      removeNetlifyDrawer();
+      const obs = new MutationObserver(() => removeNetlifyDrawer());
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener('DOMContentLoaded', removeNetlifyDrawer);
+      window.addEventListener('load', removeNetlifyDrawer);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Üst Başlık (Header / App Bar) -->
+  <header class="app-header">
+    <div class="header-top">
+      <button class="plate-badge-container" id="headerPlateBtn" title="Plaka ve Araç Bilgilerini Değiştir">
+        <div class="tr-plate">
+          <div class="tr-flag-zone">
+            <span>TR</span>
+          </div>
+          <div class="tr-plate-text" id="displayHeaderPlate">34 ABC 123</div>
+        </div>
+        <div class="vehicle-quick-info">
+          <span class="vehicle-name-label" id="displayVehicleName">Aracım</span>
+          <span class="vehicle-km-label" id="displayHeaderKm">0 km</span>
+        </div>
+      </button>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="quickBackupBtn" title="Hızlı Yedek Al">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        </button>
+        <button class="icon-btn" id="openSettingsHeaderBtn" title="Araç Ayarları">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- PWA Yükle Banner (Sadece Yüklenebilir olduğunda görünür) -->
+  <div class="pwa-banner" id="pwaInstallBanner" style="display: none;">
+    <div class="pwa-banner-text">Uygulamayı telefonunuza yükleyin!</div>
+    <button class="pwa-banner-btn" id="pwaInstallBtn">Yükle</button>
+  </div>
+
+  <main class="main-container">
+
+    <!-- 1. TAB: ÖZET (DASHBOARD) -->
+    <section class="tab-content active" id="tabDashboard">
+      <!-- Hero Özet Kartı -->
+      <div class="hero-card">
+        <div class="hero-header">
+          <span class="hero-subtitle">Toplam Masraf Özeti</span>
+          <span class="hero-plate-badge" id="heroPlateBadge">34 ABC 123</span>
+        </div>
+        <div class="hero-amount" id="heroTotalAmount"><span>₺</span>0,00</div>
+        <div class="hero-stats-row">
+          <div class="stat-item">
+            <span class="stat-label">Bu Ay Harcanan</span>
+            <span class="stat-val" id="heroMonthAmount">₺ 0,00</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Ort. Yakıt Tüketimi</span>
+            <span class="stat-val" id="heroFuelAvg">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Yaklaşan Hatırlatıcı / Bakım Uyarısı -->
+      <div class="reminder-alert-card" id="upcomingReminderAlert" style="display: none;">
+        <div class="reminder-alert-info">
+          <div class="reminder-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+          </div>
+          <div>
+            <div class="reminder-title" id="alertReminderTitle">Periyodik Bakım Yaklaştı</div>
+            <div class="reminder-desc" id="alertReminderDesc">Sonraki bakım için kalan mesafe</div>
+          </div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-dim)"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+      </div>
+
+      <!-- Son Giderler Başlığı -->
+      <div class="section-title-row">
+        <span class="section-title">
+          Son Kayıtlar
+        </span>
+        <button class="section-action-btn" id="seeAllExpensesBtn">Tümünü Gör</button>
+      </div>
+
+      <!-- Son 5 Kayıt Listesi -->
+      <div class="record-list" id="dashboardRecentList">
+        <!-- Dinamik dolacak -->
+      </div>
+    </section>
+
+
+    <!-- 2. TAB: GİDERLER & BAKIM DEFTERİ (TÜM KAYITLAR) -->
+    <section class="tab-content" id="tabExpenses">
+      <!-- Canlı Arama Kutusu -->
+      <div class="filter-search-box">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="expenseSearchInput" class="filter-search-input" placeholder="Açıklama, servis veya not ara...">
+      </div>
+
+      <!-- Kategori Filtreleme Çipleri -->
+      <div class="chips-scroll" id="categoryChips">
+        <button class="chip active" data-category="all">Tümü</button>
+        <button class="chip" data-category="fuel">⛽ Yakıt</button>
+        <button class="chip" data-category="maintenance">🔧 Bakım</button>
+        <button class="chip" data-category="repair">🛠️ Arıza</button>
+        <button class="chip" data-category="insurance">🛡️ Sigorta</button>
+        <button class="chip" data-category="inspection">📋 Muayene</button>
+        <button class="chip" data-category="wash">🧽 Yıkama</button>
+        <button class="chip" data-category="tax">💳 Vergi</button>
+        <button class="chip" data-category="other">📦 Diğer</button>
+      </div>
+
+      <!-- İkincil Filtreler (Tarih & Sıralama) -->
+      <div class="filter-row-secondary">
+        <select id="dateFilterSelect" class="select-custom">
+          <option value="all">Tüm Zamanlar</option>
+          <option value="this_month">Bu Ay</option>
+          <option value="last_month">Geçen Ay</option>
+          <option value="this_year">Bu Yıl</option>
+        </select>
+
+        <select id="sortFilterSelect" class="select-custom">
+          <option value="date_desc">Tarih (En Yeni)</option>
+          <option value="date_asc">Tarih (En Eski)</option>
+          <option value="amount_desc">Tutar (En Yüksek)</option>
+          <option value="amount_asc">Tutar (En Düşük)</option>
+          <option value="km_desc">Kilometre (Azalan)</option>
+        </select>
+      </div>
+
+      <!-- Filtrelenmiş Liste -->
+      <div class="record-list" id="allExpensesList">
+        <!-- Dinamik dolacak -->
+      </div>
+    </section>
+
+
+    <!-- 3. TAB: HATIRLATICILAR & BAKIM PLANI -->
+    <section class="tab-content" id="tabReminders">
+      <div class="section-title-row">
+        <span class="section-title">Periyodik Bakım & Hatırlatıcılar</span>
+        <button class="btn btn-primary" id="openAddReminderBtn" style="padding: 6px 14px; font-size: 12px;">+ Yeni Ekle</button>
+      </div>
+
+      <div class="record-list" id="remindersList">
+        <!-- Dinamik dolacak -->
+      </div>
+    </section>
+
+
+    <!-- 4. TAB: AYARLAR & YEDEKLEME -->
+    <section class="tab-content" id="tabSettings">
+      <!-- Araç ve Plaka Kartı -->
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+          </div>
+          <div>
+            <div class="settings-card-title">Araç & Plaka Bilgileri</div>
+            <div class="settings-card-desc">Plakanızı ve araç detaylarınızı güncelleyin</div>
+          </div>
+        </div>
+
+        <button class="settings-row-btn" id="editVehicleSettingsBtn">
+          <span>🚗 Araç Bilgilerini & Plakayı Düzenle</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        </button>
+      </div>
+
+      <!-- Yedekleme & Geri Yükleme Kartı -->
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          </div>
+          <div>
+            <div class="settings-card-title">Veri Yedekleme & Geri Yükleme</div>
+            <div class="settings-card-desc">Verilerinizi telefonunuza indirin veya geri yükleyin</div>
+          </div>
+        </div>
+
+        <button class="settings-row-btn" id="exportBackupJsonBtn">
+          <span>💾 Telefona Yedek İndir (JSON)</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+
+        <label class="settings-row-btn" style="cursor: pointer;">
+          <span>📥 Yedekten Geri Yükle (JSON Seç)</span>
+          <input type="file" id="importBackupFileInput" accept=".json" style="display: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+        </label>
+
+        <button class="settings-row-btn" id="exportCsvBtn">
+          <span>📊 Excel / CSV Olarak Dışa Aktar</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        </button>
+      </div>
+
+      <!-- Veri Yönetimi & Test Verisi -->
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: #e0f2fe; color: #0284c7;">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          </div>
+          <div>
+            <div class="settings-card-title">Hızlı İşlemler</div>
+            <div class="settings-card-desc">Örnek veri ekleme ve veri sıfırlama</div>
+          </div>
+        </div>
+
+        <button class="settings-row-btn" id="loadSampleDataBtn">
+          <span>✨ Örnek Verileri Yükle</span>
+          <span style="font-size: 11px; color: var(--primary);">Test et</span>
+        </button>
+
+        <button class="settings-row-btn" id="resetAllDataBtn" style="color: var(--danger);">
+          <span>🗑️ Tüm Verileri Sıfırla</span>
+          <span style="font-size: 11px; color: var(--danger);">Temizle</span>
+        </button>
+      </div>
+
+      <div style="text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 20px;">
+        Araç Defteri PWA • Material You v1.0<br>
+        Tüm verileriniz yalnızca bu cihazda (telefonunuzda) saklanır.
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FAB: Yeni Kayıt Ekle Butonu -->
+  <button class="fab" id="openAddExpenseFab" title="Yeni Kayıt Ekle">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+  </button>
+
+  <!-- Alt Gezinme Çubuğu (Bottom Navigation) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="tabDashboard">
+      <div class="nav-icon-container">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </div>
+      <span class="nav-label">Özet</span>
+    </button>
+
+    <button class="nav-item" data-tab="tabExpenses">
+      <div class="nav-icon-container">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      </div>
+      <span class="nav-label">Giderler</span>
+    </button>
+
+    <button class="nav-item" data-tab="tabReminders">
+      <div class="nav-icon-container">
+        <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+      </div>
+      <span class="nav-label">Bakım</span>
+    </button>
+
+    <button class="nav-item" data-tab="tabSettings">
+      <div class="nav-icon-container">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </div>
+      <span class="nav-label">Ayarlar</span>
+    </button>
+  </nav>
+
+
+  <!-- MODAL: KAYIT EKLE / DÜZENLE (BOTTOM SHEET) -->
+  <div class="modal-overlay" id="expenseModal">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" id="expenseModalTitle">Yeni Gider Kaydı</h3>
+        <button class="icon-btn" id="closeExpenseModalBtn" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <form id="expenseForm" class="sheet-body">
+        <input type="hidden" id="expenseEditId" value="">
+
+        <!-- Kategori Seçimi -->
+        <div class="form-group">
+          <label class="form-label">Kategori</label>
+          <div class="category-picker-grid" id="formCatPicker">
+            <div class="cat-picker-item selected" data-value="fuel">
+              <span class="emoji">⛽</span>
+              <span class="label">Yakıt</span>
+            </div>
+            <div class="cat-picker-item" data-value="maintenance">
+              <span class="emoji">🔧</span>
+              <span class="label">Bakım</span>
+            </div>
+            <div class="cat-picker-item" data-value="repair">
+              <span class="emoji">🛠️</span>
+              <span class="label">Arıza</span>
+            </div>
+            <div class="cat-picker-item" data-value="insurance">
+              <span class="emoji">🛡️</span>
+              <span class="label">Sigorta</span>
+            </div>
+            <div class="cat-picker-item" data-value="inspection">
+              <span class="emoji">📋</span>
+              <span class="label">Muayene</span>
+            </div>
+            <div class="cat-picker-item" data-value="wash">
+              <span class="emoji">🧽</span>
+              <span class="label">Yıkama</span>
+            </div>
+            <div class="cat-picker-item" data-value="tax">
+              <span class="emoji">💳</span>
+              <span class="label">Vergi/Harç</span>
+            </div>
+            <div class="cat-picker-item" data-value="other">
+              <span class="emoji">📦</span>
+              <span class="label">Diğer</span>
+            </div>
+          </div>
+          <input type="hidden" id="formCategory" value="fuel" required>
+        </div>
+
+        <!-- Tutar ve Tarih -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tutar (₺) *</label>
+            <input type="number" step="0.01" id="formAmount" class="form-input" placeholder="0.00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tarih *</label>
+            <input type="date" id="formDate" class="form-input" required>
+          </div>
+        </div>
+
+        <!-- Kilometre -->
+        <div class="form-group">
+          <label class="form-label">Araç Kilometresi (km)</label>
+          <input type="number" id="formKm" class="form-input" placeholder="Örn: 145000">
+        </div>
+
+        <!-- Yakıt Ekstra Alanları (Sadece Yakıt Seçiliyse Görünür) -->
+        <div id="fuelExtraFields" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Alınan Yakıt (Litre)</label>
+              <input type="number" step="0.01" id="formFuelLiters" class="form-input" placeholder="Örn: 42.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Litre Fiyatı (₺/L)</label>
+              <input type="number" step="0.01" id="formFuelPricePerLiter" class="form-input" placeholder="Örn: 44.50">
+            </div>
+          </div>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="formFuelIsFull" checked>
+            <span>Depo tamamen dolduruldu (Ortalama tüketim hesabı için)</span>
+          </label>
+        </div>
+
+        <!-- Açıklama / Başlık -->
+        <div class="form-group">
+          <label class="form-label">Başlık / Açıklama *</label>
+          <input type="text" id="formTitle" class="form-input" placeholder="Örn: Shell Dizel Yakıtı veya Yağ Değişimi" required>
+        </div>
+
+        <!-- İstasyon / Servis / Usta -->
+        <div class="form-group">
+          <label class="form-label">İstasyon / Servis Adı (İsteğe bağlı)</label>
+          <input type="text" id="formPlace" class="form-input" placeholder="Örn: Shell Maslak veya Otopratik">
+        </div>
+
+        <!-- Ek Notlar -->
+        <div class="form-group">
+          <label class="form-label">Notlar (İsteğe bağlı)</label>
+          <textarea id="formNotes" class="form-textarea" rows="2" placeholder="Fatura no, usta tavsiyesi vb."></textarea>
+        </div>
+
+        <!-- Butonlar -->
+        <div style="display: flex; gap: 10px; margin-top: 8px;">
+          <button type="button" class="btn btn-secondary" id="cancelExpenseBtn" style="flex: 1;">Vazgeç</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseBtn" style="flex: 2;">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MODAL: ARAÇ VE PLAKA DÜZENLEME -->
+  <div class="modal-overlay" id="vehicleModal">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Araç & Plaka Bilgileri</h3>
+        <button class="icon-btn" id="closeVehicleModalBtn" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <form id="vehicleForm" class="sheet-body">
+        <div class="form-group">
+          <label class="form-label">Plaka *</label>
+          <input type="text" id="vehiclePlateInput" class="form-input" placeholder="34 ABC 123" style="text-transform: uppercase; font-weight: 700; letter-spacing: 1px;" required>
+          <span style="font-size: 11px; color: var(--text-dim);">Örn: 34 ABC 123 veya 06 XYZ 99</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Araç Marka & Model</label>
+          <input type="text" id="vehicleNameInput" class="form-input" placeholder="Örn: Renault Megane 1.5 dCi" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Model Yılı</label>
+            <input type="number" id="vehicleYearInput" class="form-input" placeholder="Örn: 2020">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Yakıt Tipi</label>
+            <select id="vehicleFuelTypeInput" class="form-select">
+              <option value="Dizel">Dizel</option>
+              <option value="Benzin">Benzin</option>
+              <option value="LPG">LPG / Benzin</option>
+              <option value="Hibrit">Hibrit</option>
+              <option value="Elektrik">Elektrik</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Güncel Kilometre (km)</label>
+          <input type="number" id="vehicleCurrentKmInput" class="form-input" placeholder="Örn: 142000">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" id="cancelVehicleBtn" style="flex: 1;">Vazgeç</button>
+          <button type="submit" class="btn btn-primary" style="flex: 2;">Plakayı & Bilgileri Güncelle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MODAL: HATIRLATICI EKLE / DÜZENLE -->
+  <div class="modal-overlay" id="reminderModal">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" id="reminderModalTitle">Yeni Bakım Hatırlatıcısı</h3>
+        <button class="icon-btn" id="closeReminderModalBtn" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+
+      <form id="reminderForm" class="sheet-body">
+        <input type="hidden" id="reminderEditId" value="">
+
+        <div class="form-group">
+          <label class="form-label">Hatırlatıcı Başlığı *</label>
+          <input type="text" id="reminderTitleInput" class="form-input" placeholder="Örn: Motor Yağı Değişimi veya Muayene" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Kategori</label>
+          <select id="reminderCategoryInput" class="form-select">
+            <option value="maintenance">🔧 Periyodik Bakım</option>
+            <option value="inspection">📋 Araç Muayenesi</option>
+            <option value="insurance">🛡️ Trafik Sigortası / Kasko</option>
+            <option value="repair">🛠️ Parça Değişimi (Triger, Balata vb.)</option>
+            <option value="tax">💳 Motorlu Taşıtlar Vergisi (MTV)</option>
+            <option value="other">📦 Diğer</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Hedef Kilometre</label>
+            <input type="number" id="reminderTargetKmInput" class="form-input" placeholder="Örn: 150000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hedef Tarih</label>
+            <input type="date" id="reminderTargetDateInput" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notlar</label>
+          <textarea id="reminderNotesInput" class="form-textarea" rows="2" placeholder="5W-30 Castrol yağ, filtre seti vs."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" id="cancelReminderBtn" style="flex: 1;">Vazgeç</button>
+          <button type="submit" class="btn btn-primary" style="flex: 2;">Hatırlatıcıyı Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- MODAL: SİLME ONAYI (CONFIRM DIALOG) -->
+  <div class="modal-overlay" id="confirmDeleteModal">
+    <div class="bottom-sheet" style="max-height: 40vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" style="color: var(--danger);">Kaydı Sil</h3>
+        <button class="icon-btn" id="closeConfirmDeleteBtn" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body">
+        <p id="confirmDeleteMessage" style="font-size: 14px; color: var(--text-main); line-height: 1.4;">
+          Bu kaydı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+        </p>
+        <div style="display: flex; gap: 10px; margin-top: 14px;">
+          <button type="button" class="btn btn-secondary" id="cancelDeleteActionBtn" style="flex: 1;">Vazgeç</button>
+          <button type="button" class="btn btn-danger" id="approveDeleteActionBtn" style="flex: 1;">Evet, Sil</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Toast Bildirim Alanı -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- JavaScript Kodları -->
+  <script src="./app.js"></script>
+
+  <!-- Service Worker Kaydı -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW Başarıyla Kaydedildi:', reg.scope))
+          .catch(err => console.error('SW Kayıt Hatası:', err));
+      });
+    }
+  </script>
+</body>
+</html>
