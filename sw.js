@@ -1,9 +1,11 @@
-const CACHE_NAME = 'arac-defteri-v2';
+const CACHE_NAME = 'arac-defteri-v3';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './jspdf.umd.min.js',
+  './jspdf.plugin.autotable.min.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

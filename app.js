@@ -258,11 +258,11 @@ function renderUpcomingReminderBadge() {
   }
 }
 
-// Dashboard Son 5 Kayıt
+// Dashboard Son Kayıtlar
 function renderDashboardRecentList() {
   const container = document.getElementById('dashboardRecentList');
   const sorted = [...state.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const recent = sorted.slice(0, 5);
+  const recent = sorted.slice(0, 20);
 
   if (recent.length === 0) {
     container.innerHTML = `
@@ -483,7 +483,11 @@ function renderRemindersList() {
         ${rem.notes ? `<div style="font-size: 11px; color: var(--text-muted);">Not: ${escapeHtml(rem.notes)}</div>` : ''}
 
         <div class="record-actions-row">
-          <button class="action-pill-btn delete-btn" data-rem-action="delete" data-id="${rem.id}">
+          <button class="action-pill-btn edit-btn" data-rem-action="edit" data-id="${rem.id}" title="Hatırlatıcıyı Düzelt">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Düzelt
+          </button>
+          <button class="action-pill-btn delete-btn" data-rem-action="delete" data-id="${rem.id}" title="Hatırlatıcıyı Sil">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
             Sil
           </button>
@@ -491,6 +495,13 @@ function renderRemindersList() {
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('[data-rem-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      openEditReminderModal(id);
+    });
+  });
 
   container.querySelectorAll('[data-rem-action="delete"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -701,11 +712,16 @@ function cleanPlateFormat(str) {
   return str.toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
-// --- HATIRLATICI EKLEME ---
+// --- HATIRLATICI EKLEME & DÜZENLEME ---
 
 function openAddReminderModal() {
   document.getElementById('reminderForm').reset();
   document.getElementById('reminderEditId').value = '';
+  document.getElementById('reminderModalTitle').textContent = 'Yeni Bakım Hatırlatıcısı';
+  
+  const submitBtn = document.getElementById('saveReminderBtn');
+  if (submitBtn) submitBtn.textContent = 'Hatırlatıcıyı Kaydet';
+
   // Güncel km'nin 10.000 fazlasını öner
   const nextKm = (Number(state.vehicle.currentKm) || 0) + 10000;
   if (nextKm > 10000) {
@@ -714,31 +730,68 @@ function openAddReminderModal() {
   openModal('reminderModal');
 }
 
+function openEditReminderModal(id) {
+  const rem = state.reminders.find(r => r.id === id);
+  if (!rem) return;
+
+  document.getElementById('reminderModalTitle').textContent = 'Hatırlatıcıyı Düzelt';
+  document.getElementById('reminderEditId').value = rem.id;
+  document.getElementById('reminderTitleInput').value = rem.title || '';
+  document.getElementById('reminderCategoryInput').value = rem.category || 'maintenance';
+  document.getElementById('reminderTargetKmInput').value = rem.targetKm || '';
+  document.getElementById('reminderTargetDateInput').value = rem.targetDate || '';
+  document.getElementById('reminderNotesInput').value = rem.notes || '';
+
+  const submitBtn = document.getElementById('saveReminderBtn');
+  if (submitBtn) submitBtn.textContent = 'Güncelle';
+
+  openModal('reminderModal');
+}
+
 function handleReminderFormSubmit(e) {
   e.preventDefault();
 
+  const editId = document.getElementById('reminderEditId').value;
   const title = document.getElementById('reminderTitleInput').value.trim();
   const category = document.getElementById('reminderCategoryInput').value;
   const targetKm = parseInt(document.getElementById('reminderTargetKmInput').value, 10) || null;
   const targetDate = document.getElementById('reminderTargetDateInput').value || null;
   const notes = document.getElementById('reminderNotesInput').value.trim();
 
-  const newRem = {
-    id: generateId(),
-    title,
-    category,
-    targetKm,
-    targetDate,
-    notes,
-    isCompleted: false,
-    createdAt: new Date().toISOString()
-  };
+  if (editId) {
+    // DÜZELTME / GÜNCELLEME İŞLEMİ
+    const index = state.reminders.findIndex(r => r.id === editId);
+    if (index !== -1) {
+      state.reminders[index] = {
+        ...state.reminders[index],
+        title,
+        category,
+        targetKm,
+        targetDate,
+        notes,
+        updatedAt: new Date().toISOString()
+      };
+      showToast('Hatırlatıcı başarıyla güncellendi.');
+    }
+  } else {
+    // YENİ HATIRLATICI EKLEME
+    const newRem = {
+      id: generateId(),
+      title,
+      category,
+      targetKm,
+      targetDate,
+      notes,
+      isCompleted: false,
+      createdAt: new Date().toISOString()
+    };
+    state.reminders.push(newRem);
+    showToast('Hatırlatıcı kaydedildi.');
+  }
 
-  state.reminders.push(newRem);
   saveToStorage();
   closeModal('reminderModal');
   renderAll();
-  showToast('Hatırlatıcı kaydedildi.');
 }
 
 // --- YEDEKLEME VE GERİ YÜKLEME (BACKUP & RESTORE) ---
@@ -805,6 +858,134 @@ function importBackupJson(event) {
     event.target.value = '';
   };
   reader.readAsText(file);
+}
+
+// PDF Olarak Dışa Aktarma (.pdf)
+function exportPdf() {
+  if (state.expenses.length === 0) {
+    showToast('Dışa aktarılacak masraf kaydı yok!');
+    return;
+  }
+
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert('PDF oluşturucu yüklenemedi. Lütfen internet bağlantınızı kontrol edip sayfayı yenileyin.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const plate = (state.vehicle.plate || '34 ABC 123').toUpperCase();
+    const vehicleName = state.vehicle.name || 'Aracım';
+    const vehicleKm = formatNumber(state.vehicle.currentKm || 0) + ' km';
+    const totalAmount = state.expenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+    // Üst Başlık Banner (Material You Teal #006a6a)
+    doc.setFillColor(0, 106, 106);
+    doc.rect(0, 0, 210, 26, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ARAC DEFTERI - GIDER VE BAKIM RAPORU', 14, 12);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Rapor Tarihi: ${formatDate(getTodayDateString())} | Olusturuldu: arac-takip`, 14, 19);
+
+    // Araç Bilgi Kartı Özeti
+    doc.setTextColor(22, 29, 29);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Plaka: ${plate}`, 14, 34);
+    doc.text(`Arac: ${vehicleName}`, 70, 34);
+    doc.text(`Guncel Km: ${vehicleKm}`, 145, 34);
+
+    doc.setDrawColor(200, 223, 223);
+    doc.line(14, 37, 196, 37);
+
+    // Toplam İstatistikler
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Toplam Harcama: ${formatCurrency(totalAmount)}  |  Toplam Kayit: ${state.expenses.length} adet`, 14, 43);
+
+    // Tablo Satırları Hazırlığı
+    const tableData = state.expenses.map(item => {
+      const cat = CATEGORIES[item.category]?.label || item.category;
+      let fuelInfo = '-';
+      if (item.category === 'fuel' && item.fuelLiters) {
+        fuelInfo = `${item.fuelLiters} L` + (item.fuelPricePerLiter ? ` (${item.fuelPricePerLiter} TL)` : '');
+      }
+      return [
+        formatDate(item.date),
+        cat,
+        item.title || '-',
+        item.km ? formatNumber(item.km) + ' km' : '-',
+        fuelInfo,
+        item.place || '-',
+        Number(item.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'
+      ];
+    });
+
+    // AutoTable ile profesyonel tablo
+    doc.autoTable({
+      startY: 48,
+      head: [['Tarih', 'Kategori', 'Baslik / Aciklama', 'Kilometre', 'Yakit', 'Servis / Istasyon', 'Tutar']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [0, 106, 106],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'center'
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2.5,
+        textColor: [30, 41, 59],
+        overflow: 'linebreak'
+      },
+      columnStyles: {
+        0: { cellWidth: 22, halign: 'center' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 42 },
+        3: { cellWidth: 24, halign: 'center' },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 26 },
+        6: { cellWidth: 26, halign: 'right', fontStyle: 'bold' }
+      },
+      alternateRowStyles: {
+        fillColor: [244, 250, 249]
+      },
+      margin: { left: 14, right: 14 },
+      didDrawPage: function(data) {
+        const pageCount = doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Sayfa ${data.pageNumber} / ${pageCount} - Arac Defteri PWA`,
+          doc.internal.pageSize.width / 2,
+          doc.internal.pageSize.height - 8,
+          { align: 'center' }
+        );
+      }
+    });
+
+    const cleanPlate = (plate || 'arac').replace(/\s+/g, '_');
+    const filename = `arac_harcamalari_${cleanPlate}_${getTodayDateString()}.pdf`;
+
+    doc.save(filename);
+    showToast('PDF raporu başarıyla indirildi!');
+  } catch (err) {
+    console.error('PDF üretme hatası:', err);
+    showToast('PDF oluşturulurken hata: ' + err.message);
+  }
 }
 
 // CSV / Excel Dışa Aktarma
@@ -1087,7 +1268,12 @@ function setupEventListeners() {
   // Ayarlar Tabı İşlemleri
   document.getElementById('exportBackupJsonBtn').addEventListener('click', exportBackupJson);
   document.getElementById('importBackupFileInput').addEventListener('change', importBackupJson);
-  document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+  
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportPdf);
+  
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportCsv);
 
   document.getElementById('loadSampleDataBtn').addEventListener('click', () => {
     if (confirm('Örnek veriler yüklensin mi?')) {
