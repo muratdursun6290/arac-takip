@@ -538,10 +538,9 @@ body {
 
 /* Dashboard Son Kayıtlar: 2 kayıttan sonra kaydırma çubuğu */
 #dashboardRecentList {
-  max-height: 235px;
-  overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
+  padding-bottom: 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1125,26 +1124,5 @@ body {
 @keyframes toastOut {
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(-10px); }
-}
-
-/* Netlify Drawer / Feedback Widget Engelleme */
-iframe[src*="app.netlify.com"],
-iframe[src*="netlify"],
-iframe#netlify-drawer,
-div#netlify-drawer,
-[data-netlify-drawer],
-div[class*="netlify-drawer"],
-#netlify-feedback-drawer,
-.netlify-drawer-container {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  width: 0 !important;
-  position: absolute !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  z-index: -9999 !important;
 }
 

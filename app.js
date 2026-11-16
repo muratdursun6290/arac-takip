@@ -272,11 +272,34 @@ function renderDashboardRecentList() {
         <div class="empty-state-desc">İlk yakıt, bakım veya masraf kaydınızı eklemek için aşağıdaki + butonuna dokunun.</div>
       </div>
     `;
+    // max-height sınırlamasını kaldır
+    container.style.maxHeight = 'none';
+    container.style.overflowY = 'visible';
     return;
   }
 
+  // Önce sınırsız göster, sonra ölçüp 2 kartın yüksekliğine sabitle
+  container.style.maxHeight = 'none';
+  container.style.overflowY = 'visible';
   container.innerHTML = recent.map(item => createExpenseCardHtml(item)).join('');
   attachRecordActionEvents(container);
+
+  // 2 veya daha fazla kart varsa max-height'ı dinamik hesapla
+  if (recent.length > 2) {
+    requestAnimationFrame(() => {
+      const cards = container.querySelectorAll('.record-card');
+      if (cards.length >= 2) {
+        // İlk 2 kartın toplam yüksekliği + aralarındaki gap (10px) + 2px buffer
+        const h1 = cards[0].getBoundingClientRect().height;
+        const h2 = cards[1].getBoundingClientRect().height;
+        const gap = 10;
+        const buffer = 4;
+        const computedHeight = Math.ceil(h1 + gap + h2 + buffer);
+        container.style.maxHeight = computedHeight + 'px';
+        container.style.overflowY = 'auto';
+      }
+    });
+  }
 }
 
 // Tüm Giderler Listesini Filtreleyip Render Etme

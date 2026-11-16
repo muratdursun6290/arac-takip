@@ -17,44 +17,6 @@
 
   <!-- CSS -->
   <link rel="stylesheet" href="./style.css">
-
-  <!-- Netlify Drawer / Feedback Widget Engelleyici -->
-  <style>
-    iframe[src*="app.netlify.com"],
-    iframe[src*="netlify"],
-    iframe#netlify-drawer,
-    div#netlify-drawer,
-    [data-netlify-drawer],
-    div[class*="netlify-drawer"],
-    #netlify-feedback-drawer,
-    .netlify-drawer-container {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      height: 0 !important;
-      width: 0 !important;
-      position: absolute !important;
-      top: -9999px !important;
-      left: -9999px !important;
-      z-index: -9999 !important;
-    }
-  </style>
-  <script>
-    (function() {
-      function removeNetlifyDrawer() {
-        const elements = document.querySelectorAll(
-          'iframe[src*="netlify"], iframe#netlify-drawer, div#netlify-drawer, [data-netlify-drawer], #netlify-feedback-drawer, div[class*="netlify-drawer"]'
-        );
-        elements.forEach(el => el.remove());
-      }
-      removeNetlifyDrawer();
-      const obs = new MutationObserver(() => removeNetlifyDrawer());
-      obs.observe(document.documentElement, { childList: true, subtree: true });
-      window.addEventListener('DOMContentLoaded', removeNetlifyDrawer);
-      window.addEventListener('load', removeNetlifyDrawer);
-    })();
-  </script>
 </head>
 <body>
 

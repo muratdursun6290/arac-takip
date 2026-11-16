@@ -1,4 +1,4 @@
-const CACHE_NAME = 'arac-defteri-v3';
+const CACHE_NAME = 'arac-defteri-v5';
 const ASSETS = [
   './',
   './index.html',
