@@ -1,4 +1,4 @@
-const CACHE_NAME = 'arac-defteri-v5';
+const CACHE_NAME = 'arac-defteri-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -61,6 +61,23 @@ self.addEventListener('fetch', (event) => {
     }).catch(() => {
       // Çevrimdışıyken index.html döndür
       return caches.match('./index.html');
+    })
+  );
+});
+
+// Bildirime tıklandığında uygulamayı aç
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('./');
+      }
     })
   );
 });

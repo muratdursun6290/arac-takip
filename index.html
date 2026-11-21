@@ -32,7 +32,6 @@
         </div>
         <div class="vehicle-quick-info">
           <span class="vehicle-name-label" id="displayVehicleName">Aracım</span>
-          <span class="vehicle-km-label" id="displayHeaderKm">0 km</span>
         </div>
       </button>
 
@@ -70,8 +69,8 @@
             <span class="stat-val" id="heroMonthAmount">₺ 0,00</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Ort. Yakıt Tüketimi</span>
-            <span class="stat-val" id="heroFuelAvg">-</span>
+            <span class="stat-label">Yılbaşından Beri</span>
+            <span class="stat-val" id="heroYearAmount">₺ 0,00</span>
           </div>
         </div>
       </div>
@@ -79,15 +78,18 @@
       <!-- Yaklaşan Hatırlatıcı / Bakım Uyarısı -->
       <div class="reminder-alert-card" id="upcomingReminderAlert" style="display: none;">
         <div class="reminder-alert-info">
-          <div class="reminder-icon">
+          <div class="reminder-icon" id="alertReminderIcon">
             <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
           </div>
-          <div>
-            <div class="reminder-title" id="alertReminderTitle">Periyodik Bakım Yaklaştı</div>
-            <div class="reminder-desc" id="alertReminderDesc">Sonraki bakım için kalan mesafe</div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="reminder-alert-header">
+              <span class="reminder-title" id="alertReminderTitle">Periyodik Bakım</span>
+              <span class="reminder-badge" id="alertReminderBadge">3 Gün Kaldı</span>
+            </div>
+            <div class="reminder-desc" id="alertReminderDesc">Planlanan Tarih: 25 Kasım 2026</div>
           </div>
         </div>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-dim)"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--text-dim)" style="flex-shrink: 0;"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
       </div>
 
       <!-- Son Giderler Başlığı -->
@@ -140,7 +142,6 @@
           <option value="date_asc">Tarih (En Eski)</option>
           <option value="amount_desc">Tutar (En Yüksek)</option>
           <option value="amount_asc">Tutar (En Düşük)</option>
-          <option value="km_desc">Kilometre (Azalan)</option>
         </select>
       </div>
 
@@ -181,6 +182,52 @@
         <button class="settings-row-btn" id="editVehicleSettingsBtn">
           <span>🚗 Araç Bilgilerini & Plakayı Düzenle</span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        </button>
+      </div>
+
+      <!-- Güvenlik & Uygulama Kilidi (Parola / Parmak İzi) -->
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: #e6f4ea; color: #137333;">
+            <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          </div>
+          <div>
+            <div class="settings-card-title">Uygulama Kilidi & Güvenlik</div>
+            <div class="settings-card-desc" id="lockStatusDesc">Parola Koruması: Kapalı</div>
+          </div>
+        </div>
+
+        <button class="settings-row-btn" id="setupPinBtn">
+          <span id="setupPinBtnText">🔑 Parola (PIN) Belirle</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        </button>
+
+        <button class="settings-row-btn" id="toggleBiometricBtn" style="display: none;">
+          <span id="toggleBiometricBtnText">👆 Parmak İzi ile Girişi Aç</span>
+          <span style="font-size: 11px; color: var(--primary);" id="biometricStateTag">Kapalı</span>
+        </button>
+
+        <button class="settings-row-btn" id="removeLockBtn" style="display: none; color: var(--danger);">
+          <span>🔓 Parola Korumasını Kaldır</span>
+          <span style="font-size: 11px; color: var(--danger);">Kaldır</span>
+        </button>
+      </div>
+
+      <!-- Bildirim Ayarları Kartı -->
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div class="settings-card-icon" style="background: #fef7e0; color: #b06000;">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+          </div>
+          <div>
+            <div class="settings-card-title">Bakım Bildirimleri</div>
+            <div class="settings-card-desc">Bakım tarihlerine 3 gün ve 1 gün kala bildirim</div>
+          </div>
+        </div>
+
+        <button class="settings-row-btn" id="requestNotifPermBtn">
+          <span id="notifPermBtnText">🔔 Bildirim İznini Etkinleştir</span>
+          <span style="font-size: 11px; color: var(--primary);" id="notifPermStatus">İzin Ver</span>
         </button>
       </div>
 
@@ -347,11 +394,8 @@
           </div>
         </div>
 
-        <!-- Kilometre -->
-        <div class="form-group">
-          <label class="form-label">Araç Kilometresi (km)</label>
-          <input type="number" id="formKm" class="form-input" placeholder="Örn: 145000">
-        </div>
+        <!-- Kilometre (Uygulama genelinde kaldırıldı, gizli tutuluyor) -->
+        <input type="hidden" id="formKm" value="">
 
         <!-- Yakıt Ekstra Alanları (Sadece Yakıt Seçiliyse Görünür) -->
         <div id="fuelExtraFields" style="display: flex; flex-direction: column; gap: 10px;">
@@ -439,10 +483,8 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Güncel Kilometre (km)</label>
-          <input type="number" id="vehicleCurrentKmInput" class="form-input" placeholder="Örn: 142000">
-        </div>
+        <!-- Güncel Kilometre (Uygulama genelinde kaldırıldı, gizli tutuluyor) -->
+        <input type="hidden" id="vehicleCurrentKmInput" value="0">
 
         <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" id="cancelVehicleBtn" style="flex: 1;">Vazgeç</button>
@@ -484,15 +526,13 @@
           </select>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Hedef Kilometre</label>
-            <input type="number" id="reminderTargetKmInput" class="form-input" placeholder="Örn: 150000">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Hedef Tarih</label>
-            <input type="date" id="reminderTargetDateInput" class="form-input">
-          </div>
+        <!-- Hedef Kilometre (Uygulama genelinde kaldırıldı) -->
+        <input type="hidden" id="reminderTargetKmInput" value="">
+
+        <div class="form-group">
+          <label class="form-label">Planlanan Hedef Tarih *</label>
+          <input type="date" id="reminderTargetDateInput" class="form-input" required>
+          <span style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Uygulama bu tarihe 3 gün ve 1 gün kala bildirim gönderir.</span>
         </div>
 
         <div class="form-group">
@@ -509,7 +549,99 @@
   </div>
 
 
-  <!-- MODAL: SİLME ONAYI (CONFIRM DIALOG) -->
+  <!-- MODAL: PIN / PAROLA BELİRLEME -->
+  <div class="modal-overlay" id="setPinModal">
+    <div class="bottom-sheet" style="max-height: 80vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title" id="setPinModalTitle">Güvenlik Parolası (PIN)</h3>
+        <button class="icon-btn" id="closeSetPinModalBtn" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <form id="setPinForm" class="sheet-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+          Uygulama açılışında sorulacak 4 haneli bir güvenlik PIN kodu belirleyin. Bilgiler sadece bu telefonda saklanır.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">4 Haneli PIN Kodu *</label>
+          <input type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" id="newPinInput" class="form-input" placeholder="••••" style="letter-spacing: 6px; font-size: 20px; text-align: center; font-weight: 700;" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">PIN Kodunu Tekrar Girin *</label>
+          <input type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" id="confirmPinInput" class="form-input" placeholder="••••" style="letter-spacing: 6px; font-size: 20px; text-align: center; font-weight: 700;" required>
+        </div>
+
+        <div id="biometricCheckboxContainer" style="display: none; margin: 10px 0;">
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-main);">
+            <input type="checkbox" id="enableBiometricCheckbox" checked>
+            <span>👆 Parmak izi okuyucu ile de girişe izin ver</span>
+          </label>
+          <span style="font-size: 11px; color: var(--text-dim); display: block; margin-top: 2px; margin-left: 24px;">Telefonun parmak izi okuyucusuyla şifre yazmadan giriş yapabilirsiniz.</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 14px;">
+          <button type="button" class="btn btn-secondary" id="cancelSetPinBtn" style="flex: 1;">Vazgeç</button>
+          <button type="submit" class="btn btn-primary" id="savePinBtn" style="flex: 2;">Parolayı Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- TAM EKRAN KİLİT / GÜVENLİK GİRİŞ EKRANI (APP LOCK SCREEN) -->
+  <div class="lock-screen-overlay" id="appLockScreen" style="display: none;">
+    <div class="lock-screen-container">
+      <div class="lock-brand">
+        <div class="lock-icon-circle">
+          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+        </div>
+        <h2 class="lock-title">Araç Defteri</h2>
+        <div class="lock-plate" id="lockPlateDisplay">34 ABC 123</div>
+        <p class="lock-subtitle">Lütfen PIN kodunuzu girin</p>
+      </div>
+
+      <!-- PIN Göstergesi (4 Yuvarlak Nokta) -->
+      <div class="pin-dots-row" id="lockPinDots">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+
+      <div class="lock-error" id="lockErrorMsg" style="visibility: hidden;">Hatalı PIN kodu! Tekrar deneyin.</div>
+
+      <!-- Tuş Takımı -->
+      <div class="lock-keypad">
+        <button type="button" class="keypad-key" data-val="1">1</button>
+        <button type="button" class="keypad-key" data-val="2">2</button>
+        <button type="button" class="keypad-key" data-val="3">3</button>
+        <button type="button" class="keypad-key" data-val="4">4</button>
+        <button type="button" class="keypad-key" data-val="5">5</button>
+        <button type="button" class="keypad-key" data-val="6">6</button>
+        <button type="button" class="keypad-key" data-val="7">7</button>
+        <button type="button" class="keypad-key" data-val="8">8</button>
+        <button type="button" class="keypad-key" data-val="9">9</button>
+        <button type="button" class="keypad-key keypad-bio-btn" id="lockBioBtn" title="Parmak İzi ile Giriş">
+          <svg viewBox="0 0 24 24"><path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 5.92 1.5.24.13.33.43.2.67-.08.19-.21.3-.32.3zm-1.07 2.36c-.07 0-.15-.02-.22-.06-1.39-.72-2.92-1.12-4.52-1.12-1.6 0-3.13.4-4.52 1.12-.24.13-.54.03-.67-.21-.13-.24-.03-.54.21-.67C8.58 5.12 10.25 4.7 12 4.7s3.42.42 4.99 1.19c.24.13.34.43.21.67-.09.13-.27.27-.46.27zm1.09 4.01c-.02 0-.05 0-.07-.01-1.93-.41-3.91-.62-5.87-.62-1.92 0-3.87.2-5.8.61-.27.06-.53-.12-.58-.39-.06-.27.12-.53.39-.58 2.05-.44 4.13-.65 6.18-.65 2.08 0 4.19.22 6.24.66.27.06.44.32.38.59-.05.23-.26.39-.47.39zm-3.72 10.3c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.2.2.2.51 0 .71-.11.1-.24.16-.37.16zm-4.3 1.25c-.17 0-.33-.09-.41-.26-.8-1.57-1.22-3.32-1.22-5.06 0-1.63.38-3.15 1.12-4.52.13-.24.43-.34.68-.21.24.13.34.43.21.68-.66 1.23-1.01 2.59-1.01 4.05 0 1.57.38 3.14 1.1 4.56.12.25.03.55-.21.68-.08.06-.17.08-.26.08zm11.39-2.31c-.22 0-.42-.15-.48-.38-.41-1.63-.62-3.18-.62-4.6 0-1.2-.2-2.37-.58-3.48-.09-.26.05-.54.31-.63.26-.09.54.05.63.31.42 1.22.64 2.51.64 3.8 0 1.51.22 3.15.67 4.91.07.27-.1.53-.37.6-.06.05-.13.07-.2.07z"/></svg>
+        </button>
+        <button type="button" class="keypad-key" data-val="0">0</button>
+        <button type="button" class="keypad-key keypad-del-btn" id="lockBackspaceBtn" title="Geri Al">
+          <svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7.07L2.4 12l4.66-7H22v14zm-11.59-2L14 13.41 17.59 17 19 15.59 15.41 12 19 8.41 17.59 7 14 10.59 10.41 7 9 8.41 12.59 12 9 15.59z"/></svg>
+        </button>
+      </div>
+
+      <!-- Parmak İzi Hızlı Buton -->
+      <div id="lockBioQuickRow" style="margin-top: 18px; text-align: center;">
+        <button type="button" class="btn btn-secondary" id="lockDirectBioBtn" style="border-radius: var(--radius-full); padding: 10px 22px; font-size: 13px; display: inline-flex; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 5.92 1.5.24.13.33.43.2.67-.08.19-.21.3-.32.3zm-1.07 2.36c-.07 0-.15-.02-.22-.06-1.39-.72-2.92-1.12-4.52-1.12-1.6 0-3.13.4-4.52 1.12-.24.13-.54.03-.67-.21-.13-.24-.03-.54.21-.67C8.58 5.12 10.25 4.7 12 4.7s3.42.42 4.99 1.19c.24.13.34.43.21.67-.09.13-.27.27-.46.27zm1.09 4.01c-.02 0-.05 0-.07-.01-1.93-.41-3.91-.62-5.87-.62-1.92 0-3.87.2-5.8.61-.27.06-.53-.12-.58-.39-.06-.27.12-.53.39-.58 2.05-.44 4.13-.65 6.18-.65 2.08 0 4.19.22 6.24.66.27.06.44.32.38.59-.05.23-.26.39-.47.39zm-3.72 10.3c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.2.2.2.51 0 .71-.11.1-.24.16-.37.16zm-4.3 1.25c-.17 0-.33-.09-.41-.26-.8-1.57-1.22-3.32-1.22-5.06 0-1.63.38-3.15 1.12-4.52.13-.24.43-.34.68-.21.24.13.34.43.21.68-.66 1.23-1.01 2.59-1.01 4.05 0 1.57.38 3.14 1.1 4.56.12.25.03.55-.21.68-.08.06-.17.08-.26.08zm11.39-2.31c-.22 0-.42-.15-.48-.38-.41-1.63-.62-3.18-.62-4.6 0-1.2-.2-2.37-.58-3.48-.09-.26.05-.54.31-.63.26-.09.54.05.63.31.42 1.22.64 2.51.64 3.8 0 1.51.22 3.15.67 4.91.07.27-.1.53-.37.6-.06.05-.13.07-.2.07z"/></svg>
+          <span>Parmak İzi ile Giriş Yap</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="confirmDeleteModal">
     <div class="bottom-sheet" style="max-height: 40vh;">
       <div class="sheet-handle"></div>

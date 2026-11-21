@@ -137,6 +137,8 @@ function initApp() {
   loadFromStorage();
   setupEventListeners();
   renderAll();
+  initSecurityLock();
+  initNotificationSystem();
 }
 
 function renderAll() {
@@ -152,7 +154,10 @@ function renderVehicleInfo() {
   document.getElementById('displayHeaderPlate').textContent = plateText;
   document.getElementById('heroPlateBadge').textContent = plateText;
   document.getElementById('displayVehicleName').textContent = state.vehicle.name || 'Aracım';
-  document.getElementById('displayHeaderKm').textContent = formatNumber(state.vehicle.currentKm || 0) + ' km';
+  const headerKmElem = document.getElementById('displayHeaderKm');
+  if (headerKmElem) {
+    headerKmElem.style.display = 'none';
+  }
 }
 
 // Özet (Dashboard) Ekranı
@@ -169,92 +174,95 @@ function renderDashboard() {
   const monthTotal = thisMonthExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   document.getElementById('heroMonthAmount').textContent = formatCurrency(monthTotal);
 
-  // Ortalama Yakıt Tüketimi
-  renderFuelAverage();
+  // Yılbaşından Beri Yapılan Harcamalar
+  renderYearTotal();
 
-  // Yaklaşan Hatırlatıcı Uyarısı
+  // Yaklaşan En Yakın Bakım / Hatırlatıcı Kartı
   renderUpcomingReminderBadge();
 
-  // Dashboard Son 5 Kayıt
+  // Dashboard Son Kayıtlar
   renderDashboardRecentList();
 }
 
-// Yakıt Tüketimi Hesaplama (L/100km veya ₺/km)
-function renderFuelAverage() {
-  const fuelRecords = state.expenses
-    .filter(item => item.category === 'fuel' && item.km > 0)
-    .sort((a, b) => a.km - b.km);
-
-  const fuelAvgElem = document.getElementById('heroFuelAvg');
-
-  if (fuelRecords.length >= 2) {
-    const first = fuelRecords[0];
-    const last = fuelRecords[fuelRecords.length - 1];
-    const kmDiff = last.km - first.km;
-
-    if (kmDiff > 0) {
-      // Toplam yakıt masrafı (ilk alım hariç veya son alınanlara göre)
-      const totalFuelCost = fuelRecords.slice(1).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      const totalLiters = fuelRecords.slice(1).reduce((sum, item) => sum + (Number(item.fuelLiters) || 0), 0);
-
-      const costPerKm = totalFuelCost / kmDiff;
-      if (totalLiters > 0) {
-        const litersPer100 = (totalLiters / kmDiff) * 100;
-        fuelAvgElem.textContent = `${litersPer100.toFixed(1)} L/100km (${costPerKm.toFixed(2)} ₺/km)`;
-      } else {
-        fuelAvgElem.textContent = `${costPerKm.toFixed(2)} ₺/km`;
-      }
-      return;
-    }
+// Yılbaşından Beri Yapılan Harcamalar (1 Ocak'tan Bugüne)
+function renderYearTotal() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const thisYearExpenses = state.expenses.filter(item => {
+    if (!item.date) return false;
+    const d = new Date(item.date);
+    return d.getFullYear() === currentYear;
+  });
+  const yearTotal = thisYearExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  const elem = document.getElementById('heroYearAmount');
+  if (elem) {
+    elem.textContent = formatCurrency(yearTotal);
   }
-
-  fuelAvgElem.textContent = '-';
 }
 
-// Yaklaşan Hatırlatıcı Uyarısı
+// Tarih Farkı (Gün Olarak) Hesaplama
+function getDaysDifference(targetDateStr) {
+  if (!targetDateStr) return Infinity;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(targetDateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / (1000 * 60 * 60 * 24));
+}
+
+// Yaklaşan Hatırlatıcı Uyarısı (En Yakın Tarihli Olan)
 function renderUpcomingReminderBadge() {
   const alertCard = document.getElementById('upcomingReminderAlert');
   const alertTitle = document.getElementById('alertReminderTitle');
   const alertDesc = document.getElementById('alertReminderDesc');
+  const alertBadge = document.getElementById('alertReminderBadge');
+
+  if (!alertCard) return;
 
   if (state.reminders.length === 0) {
     alertCard.style.display = 'none';
     return;
   }
 
-  const currentKm = Number(state.vehicle.currentKm) || 0;
-  const today = getTodayDateString();
+  // Henüz tamamlanmamış ve tarihi olan hatırlatıcıları sırala
+  const pendingReminders = state.reminders
+    .filter(rem => !rem.isCompleted && rem.targetDate)
+    .map(rem => {
+      return {
+        ...rem,
+        diffDays: getDaysDifference(rem.targetDate)
+      };
+    })
+    .sort((a, b) => a.diffDays - b.diffDays);
 
-  // En acil olanı bul (km veya tarih olarak)
-  let urgentReminder = null;
-  let minDiffKm = Infinity;
-
-  for (const rem of state.reminders) {
-    if (rem.isCompleted) continue;
-    let diffKm = rem.targetKm ? (rem.targetKm - currentKm) : Infinity;
-    if (diffKm < minDiffKm) {
-      minDiffKm = diffKm;
-      urgentReminder = rem;
-    }
+  if (pendingReminders.length === 0) {
+    alertCard.style.display = 'none';
+    return;
   }
 
-  if (urgentReminder) {
-    alertCard.style.display = 'flex';
-    alertTitle.textContent = urgentReminder.title;
-    if (urgentReminder.targetKm) {
-      const remainingKm = urgentReminder.targetKm - currentKm;
-      if (remainingKm <= 0) {
-        alertDesc.textContent = `⚠️ Bakım kilometresi ${Math.abs(remainingKm)} km aşıldı!`;
-        alertDesc.style.color = 'var(--danger)';
-      } else {
-        alertDesc.textContent = `Hedef: ${formatNumber(urgentReminder.targetKm)} km (${formatNumber(remainingKm)} km kaldı)`;
-        alertDesc.style.color = 'var(--text-muted)';
-      }
-    } else if (urgentReminder.targetDate) {
-      alertDesc.textContent = `Hedef Tarih: ${formatDate(urgentReminder.targetDate)}`;
+  // En yakın tarihli olan
+  const urgent = pendingReminders[0];
+  alertCard.style.display = 'flex';
+  alertTitle.textContent = urgent.title;
+  alertDesc.textContent = `Planlanan Tarih: ${formatDate(urgent.targetDate)}`;
+
+  if (alertBadge) {
+    alertBadge.className = 'reminder-badge';
+    if (urgent.diffDays === 0) {
+      alertBadge.textContent = 'Bugün!';
+      alertBadge.classList.add('urgent');
+    } else if (urgent.diffDays === 1) {
+      alertBadge.textContent = 'Yarın! (1 Gün)';
+      alertBadge.classList.add('urgent');
+    } else if (urgent.diffDays === 3) {
+      alertBadge.textContent = '3 Gün Kaldı';
+      alertBadge.classList.add('warning');
+    } else if (urgent.diffDays > 0) {
+      alertBadge.textContent = `${urgent.diffDays} Gün Kaldı`;
+    } else {
+      alertBadge.textContent = `${Math.abs(urgent.diffDays)} Gün Gecikti`;
+      alertBadge.classList.add('urgent');
     }
-  } else {
-    alertCard.style.display = 'none';
   }
 }
 
@@ -284,21 +292,23 @@ function renderDashboardRecentList() {
   container.innerHTML = recent.map(item => createExpenseCardHtml(item)).join('');
   attachRecordActionEvents(container);
 
-  // 2 veya daha fazla kart varsa max-height'ı dinamik hesapla
+  // 2'den fazla kart varsa max-height'ı tam 2 kartı gösterecek şekilde hesapla
   if (recent.length > 2) {
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       const cards = container.querySelectorAll('.record-card');
       if (cards.length >= 2) {
-        // İlk 2 kartın toplam yüksekliği + aralarındaki gap (10px) + 2px buffer
-        const h1 = cards[0].getBoundingClientRect().height;
-        const h2 = cards[1].getBoundingClientRect().height;
-        const gap = 10;
-        const buffer = 4;
-        const computedHeight = Math.ceil(h1 + gap + h2 + buffer);
+        const h1 = Math.max(cards[0].offsetHeight, cards[0].getBoundingClientRect().height);
+        const h2 = Math.max(cards[1].offsetHeight, cards[1].getBoundingClientRect().height);
+        const gap = 12;
+        const extraRoom = 16; // 2. kartın butonları ve alt gölgesinin tam görünmesi için pay
+        const computedHeight = Math.ceil(h1 + gap + h2 + extraRoom);
         container.style.maxHeight = computedHeight + 'px';
         container.style.overflowY = 'auto';
       }
-    });
+    }, 60);
+  } else {
+    container.style.maxHeight = 'none';
+    container.style.overflowY = 'visible';
   }
 }
 
@@ -383,10 +393,6 @@ function createExpenseCardHtml(item) {
     }
   }
 
-  if (item.km) {
-    detailsHtml += `<span class="record-badge">📍 ${formatNumber(item.km)} km</span>`;
-  }
-
   if (item.place) {
     detailsHtml += `<span class="record-badge">🏢 ${escapeHtml(item.place)}</span>`;
   }
@@ -467,23 +473,30 @@ function renderRemindersList() {
     return;
   }
 
-  const currentKm = Number(state.vehicle.currentKm) || 0;
-
   container.innerHTML = state.reminders.map(rem => {
     const cat = CATEGORIES[rem.category] || CATEGORIES.maintenance;
     let statusText = '';
     let isUrgent = false;
 
-    if (rem.targetKm) {
-      const remainingKm = rem.targetKm - currentKm;
-      if (remainingKm <= 0) {
-        statusText = `⚠️ Kilometresi aşıldı (${Math.abs(remainingKm)} km geçti)`;
+    if (rem.targetDate) {
+      const diffDays = getDaysDifference(rem.targetDate);
+      if (diffDays === 0) {
+        statusText = '🚨 Bugün bakım günü!';
         isUrgent = true;
+      } else if (diffDays === 1) {
+        statusText = '⚠️ Yarın! (1 gün kaldı)';
+        isUrgent = true;
+      } else if (diffDays === 3) {
+        statusText = '🔔 3 gün kaldı • ' + formatDate(rem.targetDate);
+        isUrgent = true;
+      } else if (diffDays > 0) {
+        statusText = `📅 ${formatDate(rem.targetDate)} (${diffDays} gün kaldı)`;
       } else {
-        statusText = `${formatNumber(remainingKm)} km kaldı (Hedef: ${formatNumber(rem.targetKm)} km)`;
+        statusText = `⚠️ Tarihi geçti (${Math.abs(diffDays)} gün gecikti)`;
+        isUrgent = true;
       }
-    } else if (rem.targetDate) {
-      statusText = `Hedef: ${formatDate(rem.targetDate)}`;
+    } else {
+      statusText = 'Planlandı';
     }
 
     return `
@@ -499,7 +512,7 @@ function renderRemindersList() {
             </div>
           </div>
           <span class="record-badge" style="background: ${isUrgent ? 'var(--danger-container)' : 'var(--surface-container-low)'}; color: ${isUrgent ? 'var(--danger)' : 'var(--text-main)'};">
-            ${isUrgent ? 'Acil' : 'Planlandı'}
+            ${isUrgent ? 'Yaklaştı' : 'Planlandı'}
           </span>
         </div>
 
@@ -706,7 +719,6 @@ function openVehicleModal() {
   document.getElementById('vehicleNameInput').value = state.vehicle.name || '';
   document.getElementById('vehicleYearInput').value = state.vehicle.year || '';
   document.getElementById('vehicleFuelTypeInput').value = state.vehicle.fuelType || 'Dizel';
-  document.getElementById('vehicleCurrentKmInput').value = state.vehicle.currentKm || '';
 
   openModal('vehicleModal');
 }
@@ -715,14 +727,12 @@ function handleVehicleFormSubmit(e) {
   e.preventDefault();
 
   let plate = document.getElementById('vehiclePlateInput').value.trim().toUpperCase();
-  // Boşlukları düzenle (Örn: 34ABC123 -> 34 ABC 123)
   plate = cleanPlateFormat(plate);
 
   state.vehicle.plate = plate || '34 ABC 123';
   state.vehicle.name = document.getElementById('vehicleNameInput').value.trim() || 'Aracım';
   state.vehicle.year = parseInt(document.getElementById('vehicleYearInput').value, 10) || new Date().getFullYear();
   state.vehicle.fuelType = document.getElementById('vehicleFuelTypeInput').value;
-  state.vehicle.currentKm = parseInt(document.getElementById('vehicleCurrentKmInput').value, 10) || 0;
 
   saveToStorage();
   closeModal('vehicleModal');
@@ -745,11 +755,6 @@ function openAddReminderModal() {
   const submitBtn = document.getElementById('saveReminderBtn');
   if (submitBtn) submitBtn.textContent = 'Hatırlatıcıyı Kaydet';
 
-  // Güncel km'nin 10.000 fazlasını öner
-  const nextKm = (Number(state.vehicle.currentKm) || 0) + 10000;
-  if (nextKm > 10000) {
-    document.getElementById('reminderTargetKmInput').value = nextKm;
-  }
   openModal('reminderModal');
 }
 
@@ -761,7 +766,6 @@ function openEditReminderModal(id) {
   document.getElementById('reminderEditId').value = rem.id;
   document.getElementById('reminderTitleInput').value = rem.title || '';
   document.getElementById('reminderCategoryInput').value = rem.category || 'maintenance';
-  document.getElementById('reminderTargetKmInput').value = rem.targetKm || '';
   document.getElementById('reminderTargetDateInput').value = rem.targetDate || '';
   document.getElementById('reminderNotesInput').value = rem.notes || '';
 
@@ -777,7 +781,6 @@ function handleReminderFormSubmit(e) {
   const editId = document.getElementById('reminderEditId').value;
   const title = document.getElementById('reminderTitleInput').value.trim();
   const category = document.getElementById('reminderCategoryInput').value;
-  const targetKm = parseInt(document.getElementById('reminderTargetKmInput').value, 10) || null;
   const targetDate = document.getElementById('reminderTargetDateInput').value || null;
   const notes = document.getElementById('reminderNotesInput').value.trim();
 
@@ -789,7 +792,6 @@ function handleReminderFormSubmit(e) {
         ...state.reminders[index],
         title,
         category,
-        targetKm,
         targetDate,
         notes,
         updatedAt: new Date().toISOString()
@@ -802,7 +804,6 @@ function handleReminderFormSubmit(e) {
       id: generateId(),
       title,
       category,
-      targetKm,
       targetDate,
       notes,
       isCompleted: false,
@@ -815,6 +816,7 @@ function handleReminderFormSubmit(e) {
   saveToStorage();
   closeModal('reminderModal');
   renderAll();
+  checkReminderNotifications();
 }
 
 // --- YEDEKLEME VE GERİ YÜKLEME (BACKUP & RESTORE) ---
@@ -926,8 +928,7 @@ function exportPdf() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text(`Plaka: ${plate}`, 14, 34);
-    doc.text(`Arac: ${vehicleName}`, 70, 34);
-    doc.text(`Guncel Km: ${vehicleKm}`, 145, 34);
+    doc.text(`Arac: ${vehicleName}`, 80, 34);
 
     doc.setDrawColor(200, 223, 223);
     doc.line(14, 37, 196, 37);
@@ -948,7 +949,6 @@ function exportPdf() {
         formatDate(item.date),
         cat,
         item.title || '-',
-        item.km ? formatNumber(item.km) + ' km' : '-',
         fuelInfo,
         item.place || '-',
         Number(item.amount || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL'
@@ -958,7 +958,7 @@ function exportPdf() {
     // AutoTable ile profesyonel tablo
     doc.autoTable({
       startY: 48,
-      head: [['Tarih', 'Kategori', 'Baslik / Aciklama', 'Kilometre', 'Yakit', 'Servis / Istasyon', 'Tutar']],
+      head: [['Tarih', 'Kategori', 'Baslik / Aciklama', 'Yakit / Detay', 'Servis / Istasyon', 'Tutar']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -1308,6 +1308,46 @@ function setupEventListeners() {
 
   document.getElementById('resetAllDataBtn').addEventListener('click', resetAllData);
 
+  // Kilit ve Güvenlik Ayar Butonları
+  const setupPinBtn = document.getElementById('setupPinBtn');
+  if (setupPinBtn) setupPinBtn.addEventListener('click', openSetPinModal);
+
+  const closeSetPinModalBtn = document.getElementById('closeSetPinModalBtn');
+  if (closeSetPinModalBtn) closeSetPinModalBtn.addEventListener('click', () => closeModal('setPinModal'));
+
+  const cancelSetPinBtn = document.getElementById('cancelSetPinBtn');
+  if (cancelSetPinBtn) cancelSetPinBtn.addEventListener('click', () => closeModal('setPinModal'));
+
+  const setPinForm = document.getElementById('setPinForm');
+  if (setPinForm) setPinForm.addEventListener('submit', handleSetPinFormSubmit);
+
+  const removeLockBtn = document.getElementById('removeLockBtn');
+  if (removeLockBtn) removeLockBtn.addEventListener('click', handleRemoveLock);
+
+  const toggleBiometricBtn = document.getElementById('toggleBiometricBtn');
+  if (toggleBiometricBtn) toggleBiometricBtn.addEventListener('click', handleToggleBiometric);
+
+  // Bildirim İzni Butonu
+  const requestNotifPermBtn = document.getElementById('requestNotifPermBtn');
+  if (requestNotifPermBtn) requestNotifPermBtn.addEventListener('click', handleNotificationBtnClick);
+
+  // Kilit Ekranı Keypad Tuşları
+  document.querySelectorAll('.keypad-key[data-val]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-val');
+      handleKeypadInput(val);
+    });
+  });
+
+  const lockBackspaceBtn = document.getElementById('lockBackspaceBtn');
+  if (lockBackspaceBtn) lockBackspaceBtn.addEventListener('click', handleKeypadBackspace);
+
+  const lockBioBtn = document.getElementById('lockBioBtn');
+  if (lockBioBtn) lockBioBtn.addEventListener('click', authenticateWithBiometric);
+
+  const lockDirectBioBtn = document.getElementById('lockDirectBioBtn');
+  if (lockDirectBioBtn) lockDirectBioBtn.addEventListener('click', authenticateWithBiometric);
+
   // Modal dışına dokunulduğunda kapatma
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
@@ -1343,3 +1383,513 @@ function setupEventListeners() {
 
 // Uygulamayı Başlat
 document.addEventListener('DOMContentLoaded', initApp);
+
+// ==========================================================
+// GÜVENLİK, KİLİT, PIN VE BİYOMETRİK (PARMAK İZİ) SİSTEMİ
+// ==========================================================
+
+let enteredPin = '';
+let isBiometricSupported = false;
+
+// Kilit Sistemini Başlatma
+async function initSecurityLock() {
+  isBiometricSupported = await checkBiometricSupport();
+
+  // Biyometrik desteği varsa Ayarlar'daki butonu ve modal onay kutusunu göster
+  const toggleBioBtn = document.getElementById('toggleBiometricBtn');
+  const bioContainer = document.getElementById('biometricCheckboxContainer');
+  const lockBioBtn = document.getElementById('lockBioBtn');
+  const lockBioQuickRow = document.getElementById('lockBioQuickRow');
+
+  if (isBiometricSupported) {
+    if (toggleBioBtn) toggleBioBtn.style.display = 'flex';
+    if (bioContainer) bioContainer.style.display = 'block';
+    if (lockBioBtn) lockBioBtn.style.display = 'flex';
+    if (lockBioQuickRow) lockBioQuickRow.style.display = 'block';
+  } else {
+    if (toggleBioBtn) toggleBioBtn.style.display = 'none';
+    if (bioContainer) bioContainer.style.display = 'none';
+    if (lockBioBtn) lockBioBtn.style.visibility = 'hidden';
+    if (lockBioQuickRow) lockBioQuickRow.style.display = 'none';
+  }
+
+  updateSecurityUi();
+
+  // Kilit Aktif mi?
+  const isLockActive = localStorage.getItem('arac_defteri_lock_active') === 'true';
+  const hasPin = !!localStorage.getItem('arac_defteri_pin_hash');
+
+  if (isLockActive && hasPin) {
+    showLockScreen();
+    // Parmak izi aktifse otomatik olarak okutma istemini başlat
+    const isBioActive = localStorage.getItem('arac_defteri_biometric_enabled') === 'true';
+    if (isBioActive && isBiometricSupported) {
+      setTimeout(() => {
+        authenticateWithBiometric();
+      }, 350);
+    }
+  } else {
+    hideLockScreen();
+  }
+}
+
+// Biyometrik / Parmak İzi Donanım Desteği Kontrolü
+async function checkBiometricSupport() {
+  try {
+    if (window.PublicKeyCredential && 
+        window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return !!available;
+    }
+  } catch (e) {
+    console.warn('Biometric support check error:', e);
+  }
+  return false;
+}
+
+// Güvenlik Arayüzünü Güncelleme
+function updateSecurityUi() {
+  const isLockActive = localStorage.getItem('arac_defteri_lock_active') === 'true';
+  const hasPin = !!localStorage.getItem('arac_defteri_pin_hash');
+  const isBioActive = localStorage.getItem('arac_defteri_biometric_enabled') === 'true';
+
+  const lockDesc = document.getElementById('lockStatusDesc');
+  const setupPinBtnText = document.getElementById('setupPinBtnText');
+  const removeLockBtn = document.getElementById('removeLockBtn');
+  const bioStateTag = document.getElementById('biometricStateTag');
+
+  if (lockDesc) {
+    if (isLockActive && hasPin) {
+      lockDesc.textContent = isBioActive ? 'Parola Koruması: Aktif (PIN + Parmak İzi)' : 'Parola Koruması: Aktif (PIN Korunuyor)';
+      lockDesc.style.color = '#137333';
+    } else {
+      lockDesc.textContent = 'Parola Koruması: Kapalı';
+      lockDesc.style.color = 'var(--text-muted)';
+    }
+  }
+
+  if (setupPinBtnText) {
+    setupPinBtnText.textContent = (isLockActive && hasPin) ? '🔑 PIN Kodunu Değiştir' : '🔑 Parola (PIN) Belirle';
+  }
+
+  if (removeLockBtn) {
+    removeLockBtn.style.display = (isLockActive && hasPin) ? 'flex' : 'none';
+  }
+
+  if (bioStateTag) {
+    bioStateTag.textContent = isBioActive ? 'Açık' : 'Kapalı';
+    bioStateTag.style.color = isBioActive ? 'var(--primary)' : 'var(--text-dim)';
+  }
+}
+
+// Kilit Ekranını Açma
+function showLockScreen() {
+  const lockScreen = document.getElementById('appLockScreen');
+  if (!lockScreen) return;
+  
+  const plateText = (state.vehicle.plate || '34 ABC 123').toUpperCase();
+  const lockPlate = document.getElementById('lockPlateDisplay');
+  if (lockPlate) lockPlate.textContent = plateText;
+
+  enteredPin = '';
+  updatePinDots();
+  hideLockError();
+
+  lockScreen.style.display = 'flex';
+}
+
+// Kilit Ekranını Kapatma (Uygulama Açıldı)
+function hideLockScreen() {
+  const lockScreen = document.getElementById('appLockScreen');
+  if (lockScreen) {
+    lockScreen.style.display = 'none';
+  }
+}
+
+// PIN Tuş Girişi
+function handleKeypadInput(digit) {
+  if (enteredPin.length >= 4) return;
+  enteredPin += digit;
+  updatePinDots();
+  hideLockError();
+
+  if (enteredPin.length === 4) {
+    setTimeout(verifyEnteredPin, 100);
+  }
+}
+
+// PIN Geri Silme
+function handleKeypadBackspace() {
+  if (enteredPin.length > 0) {
+    enteredPin = enteredPin.slice(0, -1);
+    updatePinDots();
+    hideLockError();
+  }
+}
+
+// PIN Noktalarını Güncelle
+function updatePinDots() {
+  const dots = document.querySelectorAll('#lockPinDots .pin-dot');
+  dots.forEach((dot, index) => {
+    if (index < enteredPin.length) {
+      dot.classList.add('filled');
+    } else {
+      dot.classList.remove('filled');
+    }
+  });
+}
+
+// Hata Gösterimi
+function showLockError(msg) {
+  const errorElem = document.getElementById('lockErrorMsg');
+  if (errorElem) {
+    errorElem.textContent = msg || 'Hatalı PIN kodu! Tekrar deneyin.';
+    errorElem.style.visibility = 'visible';
+    errorElem.classList.add('shake');
+    setTimeout(() => {
+      errorElem.classList.remove('shake');
+    }, 400);
+  }
+  enteredPin = '';
+  updatePinDots();
+}
+
+function hideLockError() {
+  const errorElem = document.getElementById('lockErrorMsg');
+  if (errorElem) {
+    errorElem.style.visibility = 'hidden';
+  }
+}
+
+// SHA-256 PIN Hash Fonksiyonu
+async function hashPin(pin) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin + '_arac_defteri_salt_2026');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// PIN Doğrulama
+async function verifyEnteredPin() {
+  const savedHash = localStorage.getItem('arac_defteri_pin_hash');
+  if (!savedHash) {
+    unlockApp();
+    return;
+  }
+
+  const currentHash = await hashPin(enteredPin);
+  if (currentHash === savedHash) {
+    unlockApp();
+    showToast('Giriş başarılı! Hoş geldiniz.');
+  } else {
+    showLockError('Hatalı PIN kodu! Lütfen tekrar deneyin.');
+  }
+}
+
+// Kilidi Aç ve İçeri Al
+function unlockApp() {
+  hideLockScreen();
+  enteredPin = '';
+  updatePinDots();
+  checkReminderNotifications();
+}
+
+// Biyometrik (Parmak İzi) Kaydı
+async function registerBiometricCredential() {
+  try {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    const userId = new Uint8Array(16);
+    crypto.getRandomValues(userId);
+
+    const createOptions = {
+      publicKey: {
+        challenge,
+        rp: { name: "Araç Defteri" },
+        user: {
+          id: userId,
+          name: "surucu@aracdefteri",
+          displayName: "Araç Sahibi"
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: "public-key" },
+          { alg: -257, type: "public-key" }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required"
+        },
+        timeout: 60000
+      }
+    };
+
+    const cred = await navigator.credentials.create(createOptions);
+    if (cred && cred.rawId) {
+      const rawIdBase64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+      localStorage.setItem('arac_defteri_credential_id', rawIdBase64);
+      localStorage.setItem('arac_defteri_biometric_enabled', 'true');
+      return true;
+    }
+  } catch (err) {
+    console.warn('Parmak izi kayıt hatası:', err);
+  }
+  return false;
+}
+
+// Biyometrik (Parmak İzi) ile Doğrulama & Giriş
+async function authenticateWithBiometric() {
+  if (!isBiometricSupported) {
+    showToast('Bu cihazda parmak izi okuyucu desteklenmiyor.');
+    return;
+  }
+
+  try {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const credIdBase64 = localStorage.getItem('arac_defteri_credential_id');
+    const getOptions = {
+      publicKey: {
+        challenge,
+        userVerification: "required",
+        timeout: 60000
+      }
+    };
+
+    if (credIdBase64) {
+      const rawId = Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0));
+      getOptions.publicKey.allowCredentials = [{
+        id: rawId,
+        type: 'public-key'
+      }];
+    }
+
+    const assertion = await navigator.credentials.get(getOptions);
+    if (assertion) {
+      unlockApp();
+      showToast('Parmak izi ile giriş yapıldı! 👆');
+    }
+  } catch (err) {
+    console.log('Parmak izi okuma iptal veya başarısız:', err);
+  }
+}
+
+// PIN Belirleme Modalı Aç
+function openSetPinModal() {
+  document.getElementById('setPinForm').reset();
+  openModal('setPinModal');
+}
+
+// PIN Belirleme Form Submit
+async function handleSetPinFormSubmit(e) {
+  e.preventDefault();
+
+  const newPin = document.getElementById('newPinInput').value.trim();
+  const confirmPin = document.getElementById('confirmPinInput').value.trim();
+  const enableBio = document.getElementById('enableBiometricCheckbox').checked;
+
+  if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+    alert('Lütfen 4 basamaklı rakamlardan oluşan bir PIN kodu girin.');
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    alert('Girdiğiniz PIN kodları birbiriyle uyuşmuyor! Lütfen kontrol edin.');
+    return;
+  }
+
+  const hashed = await hashPin(newPin);
+  localStorage.setItem('arac_defteri_pin_hash', hashed);
+  localStorage.setItem('arac_defteri_lock_active', 'true');
+
+  if (enableBio && isBiometricSupported) {
+    const bioSuccess = await registerBiometricCredential();
+    if (bioSuccess) {
+      showToast('PIN kodu ve Parmak İzi başarıyla kaydedildi! 🔒');
+    } else {
+      showToast('PIN kaydedildi (Parmak izi eşleştirilemedi veya iptal edildi).');
+    }
+  } else {
+    showToast('Güvenlik PIN kodu başarıyla kaydedildi! 🔒');
+  }
+
+  closeModal('setPinModal');
+  updateSecurityUi();
+}
+
+// Parola Korumasını Kaldırma
+function handleRemoveLock() {
+  if (confirm('Uygulama parola korumasını kaldırmak istediğinizden emin misiniz?')) {
+    localStorage.removeItem('arac_defteri_pin_hash');
+    localStorage.setItem('arac_defteri_lock_active', 'false');
+    localStorage.setItem('arac_defteri_biometric_enabled', 'false');
+    localStorage.removeItem('arac_defteri_credential_id');
+    updateSecurityUi();
+    showToast('Parola koruması kaldırıldı.');
+  }
+}
+
+// Parmak İzi Açma / Kapatma Toggle
+async function handleToggleBiometric() {
+  const isBioActive = localStorage.getItem('arac_defteri_biometric_enabled') === 'true';
+  if (isBioActive) {
+    localStorage.setItem('arac_defteri_biometric_enabled', 'false');
+    updateSecurityUi();
+    showToast('Parmak izi ile giriş kapatıldı.');
+  } else {
+    if (!localStorage.getItem('arac_defteri_pin_hash')) {
+      alert('Parmak izini aktif etmek için önce bir PIN kodu belirlemelisiniz.');
+      openSetPinModal();
+      return;
+    }
+    const success = await registerBiometricCredential();
+    if (success) {
+      localStorage.setItem('arac_defteri_biometric_enabled', 'true');
+      updateSecurityUi();
+      showToast('Parmak izi ile giriş başarıyla açıldı! 👆');
+    } else {
+      showToast('Parmak izi okutma işlemi tamamlanamadı.');
+    }
+  }
+}
+
+
+// ==========================================================
+// BİLDİRİM SİSTEMİ (3 GÜN & 1 GÜN KALA BİLDİRİM GÖNDERME)
+// ==========================================================
+
+function initNotificationSystem() {
+  updateNotificationUi();
+  checkReminderNotifications();
+}
+
+// Bildirim Arayüzünü Güncelle
+function updateNotificationUi() {
+  const permBtn = document.getElementById('requestNotifPermBtn');
+  const permStatus = document.getElementById('notifPermStatus');
+  const permText = document.getElementById('notifPermBtnText');
+
+  if (!permBtn || !('Notification' in window)) return;
+
+  if (Notification.permission === 'granted') {
+    if (permStatus) {
+      permStatus.textContent = 'Açık (İzin Verildi)';
+      permStatus.style.color = '#137333';
+    }
+    if (permText) permText.textContent = '🔔 Bildirimleri Test Et';
+  } else if (Notification.permission === 'denied') {
+    if (permStatus) {
+      permStatus.textContent = 'Engellendi';
+      permStatus.style.color = 'var(--danger)';
+    }
+    if (permText) permText.textContent = '🔔 Bildirim İzni Ver';
+  } else {
+    if (permStatus) {
+      permStatus.textContent = 'İzin Ver';
+      permStatus.style.color = 'var(--primary)';
+    }
+    if (permText) permText.textContent = '🔔 Bildirim İznini Etkinleştir';
+  }
+}
+
+// Bildirim İzni İste veya Test Bildirimi Gönder
+async function handleNotificationBtnClick() {
+  if (!('Notification' in window)) {
+    showToast('Cihazınızda bildirim özelliği desteklenmiyor.');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    sendSystemNotification('Araç Defteri Test Bildirimi 🔔', {
+      body: 'Bildirimler sorunsuz çalışıyor! Bakımlarınıza 3 gün ve 1 gün kala bildirim alacaksınız.'
+    });
+    showToast('Test bildirimi gönderildi!');
+    return;
+  }
+
+  try {
+    const perm = await Notification.requestPermission();
+    updateNotificationUi();
+    if (perm === 'granted') {
+      sendSystemNotification('Araç Defteri Bildirimleri Aktif! 🚗', {
+        body: 'Planlanan periyodik bakım ve hatırlatmalarınıza 3 gün ve 1 gün kala haber verilecektir.'
+      });
+      showToast('Bildirimler başarıyla açıldı! 🔔');
+      checkReminderNotifications();
+    } else {
+      showToast('Bildirim izni verilmedi.');
+    }
+  } catch (err) {
+    console.warn('Bildirim izni hatası:', err);
+  }
+}
+
+// Sistem Bildirimi Gönder (Service Worker veya Notification API)
+function sendSystemNotification(title, options = {}) {
+  const defaultOpts = {
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    vibrate: [200, 100, 200]
+  };
+  const finalOpts = { ...defaultOpts, ...options };
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, finalOpts);
+      }).catch(() => {
+        try { new Notification(title, finalOpts); } catch(e){}
+      });
+    } else {
+      try { new Notification(title, finalOpts); } catch(e){}
+    }
+  }
+}
+
+// Hatırlatıcı Bildirim Kontrolü (3 Gün & 1 Gün Kala)
+function checkReminderNotifications() {
+  if (!state.reminders || state.reminders.length === 0) return;
+  const todayStr = getTodayDateString();
+
+  state.reminders.forEach(rem => {
+    if (rem.isCompleted || !rem.targetDate) return;
+    const diffDays = getDaysDifference(rem.targetDate);
+
+    // 3 Gün Kala
+    if (diffDays === 3) {
+      const key = `notif_${rem.id}_3days_${rem.targetDate}`;
+      if (!localStorage.getItem(key)) {
+        sendSystemNotification(`📅 3 Gün Kaldı: ${rem.title}`, {
+          body: `Planlanan bakım / işlem tarihi: ${formatDate(rem.targetDate)}. Kontrol etmeyi unutmayın!`
+        });
+        showToast(`🔔 "${rem.title}" için 3 gün kaldı!`, 'warning');
+        localStorage.setItem(key, todayStr);
+      }
+    }
+
+    // 1 Gün Kala (Yarın)
+    if (diffDays === 1) {
+      const key = `notif_${rem.id}_1day_${rem.targetDate}`;
+      if (!localStorage.getItem(key)) {
+        sendSystemNotification(`🚨 Yarın: ${rem.title}`, {
+          body: `Dikkat! Planlanan bakım / işlem tarihi yarın (${formatDate(rem.targetDate)})!`
+        });
+        showToast(`🚨 Dikkat: "${rem.title}" yarın!`, 'danger');
+        localStorage.setItem(key, todayStr);
+      }
+    }
+
+    // Bugün
+    if (diffDays === 0) {
+      const key = `notif_${rem.id}_0day_${rem.targetDate}`;
+      if (!localStorage.getItem(key)) {
+        sendSystemNotification(`📢 Bugün: ${rem.title}`, {
+          body: `Planlanan bakım / işlem gününüz geldi!`
+        });
+        showToast(`📢 Bugün: "${rem.title}"!`, 'info');
+        localStorage.setItem(key, todayStr);
+      }
+    }
+  });
+}
